@@ -15,15 +15,17 @@ isolation, with no web/db code, before any service work starts.
 - [x] pytest suite passing (6/6) — `tests/test_tokenizer.py`, `tests/test_dataset.py`
 - [X] Download real corpus (`scripts/download_sample_data.py`) and sanity-check token/batch counts on it
 
-## Phase 2 — Model Architecture (book ch. 3–4) *(current)*
-- [ ] Token + positional embedding layers
-- [ ] Scaled dot-product self-attention → causal masking → Multi-Head Attention
-- [ ] LayerNorm, GELU activation, position-wise FeedForward block
-- [ ] Transformer block (attention + FFN + residual connections + dropout)
-- [ ] Full `GPTModel` class stacking N transformer blocks + output head
-- [ ] Weight initialization; parameter count sanity check against real GPT-2 sizes (124M/355M/...)
+## Phase 2 — Model Architecture (book ch. 3–4) ✅ done, verified
+- [x] Token + positional embedding layers (`src/llm_core/model.py`)
+- [x] Scaled dot-product self-attention → causal masking → Multi-Head Attention (`src/llm_core/attention.py`)
+- [x] LayerNorm, GELU activation, position-wise FeedForward block (`src/llm_core/layers.py`)
+- [x] Transformer block (attention + FFN + residual connections + dropout) (`src/llm_core/transformer_block.py`)
+- [x] Full `GPTModel` class stacking N transformer blocks + output head (`src/llm_core/model.py`)
+- [x] Parameter count sanity check against real GPT-2 124M size — `GPT_CONFIG_124M` gives ~163M raw params (untied embeddings), within expected range; `GPT_CONFIG_TINY` (6.5M params) used for fast local testing
+- [x] `generate_text_simple` greedy-decoding smoke test (`src/llm_core/generate.py`) — confirmed end-to-end: tokenizer → model → generation → detokenizer all wired correctly (output is gibberish as expected, since untrained)
+- [x] `tests/test_model.py` — 3 tests, all passing (9/9 total across the suite)
 
-## Phase 3 — Pretraining (book ch. 5)
+## Phase 3 — Pretraining (book ch. 5) *(current)*
 - [ ] Cross-entropy loss over shifted logits/targets
 - [ ] Training loop: forward → loss → backward → optimizer step, with train/val split
 - [ ] Text generation loop: greedy decoding, then temperature + top-k sampling
