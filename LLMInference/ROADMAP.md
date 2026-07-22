@@ -25,21 +25,46 @@ isolation, with no web/db code, before any service work starts.
 - [x] `generate_text_simple` greedy-decoding smoke test (`src/llm_core/generate.py`) — confirmed end-to-end: tokenizer → model → generation → detokenizer all wired correctly (output is gibberish as expected, since untrained)
 - [x] `tests/test_model.py` — 3 tests, all passing (9/9 total across the suite)
 
-## Phase 3 — Pretraining (book ch. 5) *(current)*
-- [ ] Cross-entropy loss over shifted logits/targets
-- [ ] Training loop: forward → loss → backward → optimizer step, with train/val split
-- [ ] Text generation loop: greedy decoding, then temperature + top-k sampling
-- [ ] Checkpoint save/load
-- [ ] **GPU decision point**: this machine is CPU-only (AMD RX 6600M, no CUDA on
-      Windows). Either (a) train a tiny model on CPU for learning purposes only,
-      or (b) rent/borrow GPU time (Colab/Kaggle/cloud) for anything real.
+## Phase 3 — Pretraining (book ch. 5) ✅ code done, verified — no real training run yet
+- [x] Cross-entropy loss over shifted logits/targets (`src/llm_core/loss.py`: `calc_loss_batch`, `calc_loss_loader`)
+- [x] Training loop: forward → loss → backward → optimizer step, with train/val split (`src/llm_core/train.py`: `train_model_simple`, `evaluate_model`)
+- [x] Text generation loop: greedy decoding (Phase 2, `generate_text_simple`), then temperature + top-k sampling (`src/llm_core/generate.py`: `generate_text`)
+- [x] Checkpoint save/load (`src/llm_core/checkpoint.py`: `save_checkpoint`, `load_checkpoint` — saves model + optimizer state + config together)
+- [x] `tests/test_train.py` — 6 tests, all passing (15/15 total across the suite)
+- [ ] **GPU decision point**: CPU-only path works (device abstracted via
+      `get_device()` in `train.py`, defaults to `torch.device("cpu")`).
+      DirectML (`torch-directml`) identified as the practical path for this
+      RX 6600M on Windows (CUDA is Nvidia-only, ROCm doesn't officially
+      support this GPU / isn't native on Windows) — `get_device(use_dml=True)`
+      is wired up but **not yet installed or tested**; still CPU-only in
+      practice until that's verified.
+- [ ] Actual training run (tiny model on CPU, or real corpus once GPU path is settled) — not done yet, this phase so far is code + unit tests only
 
-## Phase 4 — Loading Pretrained GPT-2 Weights (book ch. 5)
-- [ ] Download OpenAI's released GPT-2 weights
-- [ ] Map/convert them into our from-scratch architecture's state_dict
-- [ ] Validate with known-good generations (this becomes the model actually
-      worth serving, since from-scratch pretraining on a personal CPU won't
-      reach usable quality)
+## Phase 4 — Loading Pretrained GPT-2 Weights (book ch. 5) ✅ done, verified
+- [x] Download OpenAI's released GPT-2 124M weights — via Hugging Face's
+      `transformers` (`GPT2LMHeadModel.from_pretrained("gpt2")`), not the
+      book's raw TensorFlow checkpoint download, so no `tensorflow`
+      dependency is needed (`requirements.txt` updated accordingly)
+- [x] Map/convert them into our from-scratch architecture's state_dict
+      (`src/llm_core/pretrained.py`: `load_pretrained_gpt2_124m`) — handles
+      the fused qkv `Conv1D` layer HF uses (split + transpose into our
+      separate `W_query`/`W_key`/`W_value`), the `qkv_bias=True` needed for
+      real GPT-2 (vs. our from-scratch default of `False`), and output-head
+      weight tying to the token embedding
+- [x] `tests/test_pretrained.py` — shape check + a real correctness check
+      (pretrained loss on an English sentence is dramatically lower than a
+      random-init model's; catches a subtly-wrong transpose/slice that
+      shape-checking alone wouldn't). Skips cleanly if `transformers` isn't
+      installed, so the base suite (15/15) stays green either way.
+- [x] `scripts/generate_pretrained.py` — manual validation: generates real
+      text from a prompt using the loaded weights, for eyeballing coherence
+- [x] Verified end-to-end: `transformers` installed, both
+      `tests/test_pretrained.py` tests pass (shape check + pretrained loss
+      dramatically lower than random-init), and
+      `scripts/generate_pretrained.py` produces coherent English from
+      `"Every effort moves you"` (greedy decoding repeats phrases, as
+      expected — that's `temperature=0.0`'s known failure mode, not a sign
+      of a wrong weight mapping)
 
 ## Phase 5 — Fine-tuning (book ch. 6–7)
 - [ ] Instruction fine-tuning: reformat a Q&A/chat-style dataset, fine-tune so
