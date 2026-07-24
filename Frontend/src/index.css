@@ -1,0 +1,79 @@
+/* ─── Google Fonts — must be first @import in file ──────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&display=swap');
+
+@import "tailwindcss";
+
+
+/* ─── Global resets & base ───────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background-color: #ffffff;
+  color: #1C1C2E;
+}
+
+/* ─── Custom scrollbar ───────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D4CFC4; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #B8B2A6; }
+
+/* ─── Focus ring ─────────────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid rgba(124, 58, 237, 0.5);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+textarea:focus,
+textarea:focus-visible,
+textarea:active {
+  outline: none !important;
+  border-style: none !important;
+  border-width: 0 !important;
+  box-shadow: none !important;
+}
+
+/* ─── Page fade-in ───────────────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.3s ease-out both; }
+
+/* ─── Subtle card shimmer on hover ──────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+/* ─── Tool accent CSS custom properties ─────────────────────────────────────── */
+/* Set on the wrapping element; consumed by child components */
+.tool-paraphraser  { --tool-h: 258; --tool-s: 90%; --tool-l: 56%; }
+.tool-grammar      { --tool-h: 152; --tool-s: 76%; --tool-l: 36%; }
+.tool-humanizer    { --tool-h: 27;  --tool-s: 92%; --tool-l: 48%; }
+.tool-detector     { --tool-h: 207; --tool-s: 90%; --tool-l: 44%; }
+
+.tool-accent-bg   { background-color: hsl(var(--tool-h) var(--tool-s) var(--tool-l)); }
+.tool-accent-text { color: hsl(var(--tool-h) var(--tool-s) var(--tool-l)); }
+.tool-accent-border { border-color: hsl(var(--tool-h) var(--tool-s) var(--tool-l) / 0.35); }
+.tool-accent-soft  { background-color: hsl(var(--tool-h) var(--tool-s) var(--tool-l) / 0.09); }
+
+/* ─── Hide scrollbar utility ────────────────────────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
