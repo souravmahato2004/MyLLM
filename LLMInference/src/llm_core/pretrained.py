@@ -33,12 +33,16 @@ the checkpoint.
 from __future__ import annotations
 
 import dataclasses
+from pathlib import Path
 
 import torch
 import torch.nn as nn
 
 from .config import GPT_CONFIG_124M
 from .model import GPTModel
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_PRETRAINED_CACHE_DIR = PROJECT_ROOT / "data" / "pretrained" / "huggingface"
 
 
 def _assign(target: nn.Parameter, source: torch.Tensor) -> nn.Parameter:
@@ -47,12 +51,32 @@ def _assign(target: nn.Parameter, source: torch.Tensor) -> nn.Parameter:
     return nn.Parameter(source.clone().detach())
 
 
-def load_pretrained_gpt2_124m(device: torch.device | str = "cpu") -> GPTModel:
+def load_pretrained_gpt2_124m(
+    device: torch.device | str = "cpu",
+    cache_dir: str | Path | None = None,
+) -> GPTModel:
     """Download (and cache) OpenAI's GPT-2 124M weights and return a
-    `GPTModel` with them loaded, in eval mode on `device`."""
+    `GPTModel` with them loaded, in eval mode on `device`.
+
+    By default the Hugging Face files are cached inside this project under
+    `data/pretrained/huggingface/` so the downloaded weights stay visible
+    beside the rest of the learning artifacts.
+    """
     from transformers import GPT2LMHeadModel  # noqa: PLC0415 - optional, only needed here
 
-    hf_model = GPT2LMHeadModel.from_pretrained("gpt2")
+    resolved_cache_dir = DEFAULT_PRETRAINED_CACHE_DIR if cache_dir is None else Path(cache_dir)
+
+    try:
+        # Prefer the project-local downloaded weights and avoid contacting the hub
+        # once the model is already cached.
+        hf_model = GPT2LMHeadModel.from_pretrained(
+            "gpt2",
+            cache_dir=resolved_cache_dir,
+            local_files_only=True,
+        )
+    except OSError:
+        # First run: no local cache yet, so download once into `resolved_cache_dir`.
+        hf_model = GPT2LMHeadModel.from_pretrained("gpt2", cache_dir=resolved_cache_dir)
     hf_sd = hf_model.state_dict()
 
     config = dataclasses.replace(GPT_CONFIG_124M, qkv_bias=True)
