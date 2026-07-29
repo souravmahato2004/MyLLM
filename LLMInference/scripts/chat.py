@@ -23,7 +23,7 @@ from llm_core.tokenizer import BPETokenizer
 from llm_core.train import get_device
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent
-CHECKPOINT_PATH = PROJECT_ROOT / "data" / "checkpoints" / "gpt2_124m_chat.pt"
+CHECKPOINT_PATH = PROJECT_ROOT / "data" / "checkpoints" / "gpt2_chat.pt"
 
 
 def _print(text: str) -> None:
@@ -64,7 +64,8 @@ def main() -> None:
             model, idx,
             max_new_tokens=256,
             context_length=model.config.context_length,
-            temperature=0.0,       # greedy = most coherent for a small model
+            temperature=0.7,       # lower = more deterministic, higher = more creative
+            top_k=40,              # sample from the top K most likely tokens (0 = no limit)
             eos_id=PAD_TOKEN_ID,   # stop when it emits <|endoftext|>
         )
         decoded = tokenizer.decode(out.squeeze(0).tolist())

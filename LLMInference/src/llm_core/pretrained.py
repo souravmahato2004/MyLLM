@@ -38,11 +38,17 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 
-from .config import GPT_CONFIG_124M
+from .config import GPT_CONFIG_124M, GPT_CONFIG_355M, GPTConfig
 from .model import GPTModel
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PRETRAINED_CACHE_DIR = PROJECT_ROOT / "data" / "pretrained" / "huggingface"
+
+# Which GPT-2 sizes we can load: our size key -> (Hugging Face model name, base config).
+GPT2_SIZES: dict[str, tuple[str, GPTConfig]] = {
+    "124M": ("gpt2", GPT_CONFIG_124M),
+    "355M": ("gpt2-medium", GPT_CONFIG_355M),
+}
 
 
 def _assign(target: nn.Parameter, source: torch.Tensor) -> nn.Parameter:
@@ -51,17 +57,25 @@ def _assign(target: nn.Parameter, source: torch.Tensor) -> nn.Parameter:
     return nn.Parameter(source.clone().detach())
 
 
-def load_pretrained_gpt2_124m(
+def load_pretrained_gpt2(
+    size: str = "124M",
     device: torch.device | str = "cpu",
     cache_dir: str | Path | None = None,
 ) -> GPTModel:
-    """Download (and cache) OpenAI's GPT-2 124M weights and return a
-    `GPTModel` with them loaded, in eval mode on `device`.
+    """Download (and cache) OpenAI's pretrained GPT-2 weights for the given
+    `size` ("124M" or "355M") and return a `GPTModel` with them loaded, in
+    eval mode on `device`.
 
-    By default the Hugging Face files are cached inside this project under
-    `data/pretrained/huggingface/` so the downloaded weights stay visible
-    beside the rest of the learning artifacts.
+    The weight-mapping below is identical across sizes — same architecture,
+    just more/wider layers — so it drives off `config.n_layers` and works for
+    any size in `GPT2_SIZES`. Hugging Face files cache inside this project under
+    `data/pretrained/huggingface/` so the downloaded weights stay visible beside
+    the rest of the learning artifacts.
     """
+    if size not in GPT2_SIZES:
+        raise ValueError(f"Unknown size {size!r}; choose from {list(GPT2_SIZES)}")
+    hf_name, base_config = GPT2_SIZES[size]
+
     from transformers import GPT2LMHeadModel  # noqa: PLC0415 - optional, only needed here
 
     resolved_cache_dir = DEFAULT_PRETRAINED_CACHE_DIR if cache_dir is None else Path(cache_dir)
@@ -70,16 +84,16 @@ def load_pretrained_gpt2_124m(
         # Prefer the project-local downloaded weights and avoid contacting the hub
         # once the model is already cached.
         hf_model = GPT2LMHeadModel.from_pretrained(
-            "gpt2",
+            hf_name,
             cache_dir=resolved_cache_dir,
             local_files_only=True,
         )
     except OSError:
         # First run: no local cache yet, so download once into `resolved_cache_dir`.
-        hf_model = GPT2LMHeadModel.from_pretrained("gpt2", cache_dir=resolved_cache_dir)
+        hf_model = GPT2LMHeadModel.from_pretrained(hf_name, cache_dir=resolved_cache_dir)
     hf_sd = hf_model.state_dict()
 
-    config = dataclasses.replace(GPT_CONFIG_124M, qkv_bias=True)
+    config = dataclasses.replace(base_config, qkv_bias=True)
     model = GPTModel(config)
 
     model.tok_emb.weight = _assign(model.tok_emb.weight, hf_sd["transformer.wte.weight"])
@@ -120,3 +134,12 @@ def load_pretrained_gpt2_124m(
     model.to(device)
     model.eval()
     return model
+
+
+def load_pretrained_gpt2_124m(
+    device: torch.device | str = "cpu",
+    cache_dir: str | Path | None = None,
+) -> GPTModel:
+    """Backwards-compatible wrapper — loads the 124M model. Existing callers
+    (tests, scripts) keep working; new code can call `load_pretrained_gpt2`."""
+    return load_pretrained_gpt2("124M", device=device, cache_dir=cache_dir)

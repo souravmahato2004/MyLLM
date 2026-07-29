@@ -4,6 +4,7 @@ import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { Footer } from './Footer';
 import { HowItWorks, FAQ } from '../sections/PageSections';
+import { ChatWidget } from '../chat/ChatWidget';
 import { getToolBySlug } from '../../config/tools.config';
 
 export function AppShell() {
@@ -64,6 +65,9 @@ export function AppShell() {
           </div>
         </main>
       </div>
+
+      {/* Floating AI chat, available on every authenticated page */}
+      <ChatWidget />
     </div>
   );
 }

@@ -70,3 +70,47 @@ def generate_text(
 
         idx = torch.cat((idx, idx_next), dim=1)
     return idx
+
+
+def generate_text_stream(
+    model: GPTModel,
+    idx: torch.Tensor,
+    max_new_tokens: int,
+    context_length: int,
+    temperature: float = 0.0,
+    top_k: int | None = None,
+    eos_id: int | None = None,
+):
+    """Same sampling as `generate_text`, but a generator: it `yield`s each new
+    token id the instant it's produced instead of returning the whole sequence
+    at the end. This is what makes token-by-token ("live") streaming possible —
+    the caller can forward each token onward before the next one is computed.
+    """
+    model.eval()
+    for _ in range(max_new_tokens):
+        idx_cond = idx[:, -context_length:]
+        with torch.no_grad():
+            logits = model(idx_cond)
+        logits = logits[:, -1, :]
+
+        if top_k is not None:
+            top_logits, _ = torch.topk(logits, top_k)
+            min_logit = top_logits[:, -1]
+            logits = torch.where(
+                logits < min_logit.unsqueeze(-1),
+                torch.tensor(float("-inf")).to(logits.device),
+                logits,
+            )
+
+        if temperature > 0.0:
+            logits = logits / temperature
+            probas = torch.softmax(logits, dim=-1)
+            idx_next = torch.multinomial(probas, num_samples=1)
+        else:
+            idx_next = torch.argmax(logits, dim=-1, keepdim=True)
+
+        if eos_id is not None and (idx_next == eos_id).all():
+            break
+
+        idx = torch.cat((idx, idx_next), dim=1)
+        yield idx_next.item()

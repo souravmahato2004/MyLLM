@@ -25,10 +25,13 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "src"))
 
 import torch
 
-from llm_core.pretrained import load_pretrained_gpt2_124m
+from llm_core.pretrained import load_pretrained_gpt2
 from llm_core.generate import generate_text
 from llm_core.tokenizer import BPETokenizer
 from llm_core.train import get_device
+
+# Which base model to try: "124M" or "355M" (bigger = better, ~3x slower on CPU).
+MODEL_SIZE = "124M"
 
 FEW_SHOT_PRIMER = (
     "Q: What is the capital of France?\n"
@@ -48,8 +51,8 @@ def main() -> None:
     device = get_device()
     tokenizer = BPETokenizer()
 
-    print("Loading pretrained GPT-2 124M weights...")
-    model = load_pretrained_gpt2_124m(device=device)
+    print(f"Loading pretrained GPT-2 {MODEL_SIZE} weights...")
+    model = load_pretrained_gpt2(MODEL_SIZE, device=device)
     print("Ready. Type a prompt and press Enter (blank line or 'quit' to exit).")
     print("Reminder: this is raw GPT-2, not a fine-tuned chatbot - expect autocomplete-style answers.\n")
 

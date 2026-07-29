@@ -12,7 +12,7 @@ from __future__ import annotations
 import torch
 
 from llm_core.checkpoint import load_checkpoint
-from llm_core.generate import generate_text
+from llm_core.generate import generate_text, generate_text_stream
 from llm_core.instruction import PAD_TOKEN_ID, format_input
 from llm_core.tokenizer import BPETokenizer
 from llm_core.train import get_device
@@ -61,3 +61,54 @@ class InferenceEngine:
         )
         decoded = self.tokenizer.decode(out.squeeze(0).tolist())
         return self._extract_response(decoded, prompt)
+
+    def generate_stream(
+        self,
+        instruction: str,
+        input_text: str = "",
+        max_new_tokens: int = 128,
+        temperature: float = 0.0,
+        top_k: int | None = None,
+    ):
+        """Yield the response as a stream of text chunks, one per model token.
+
+        We decode the *whole* generated-id list each step and emit only the new
+        suffix — decoding a single BPE token in isolation can split a multi-byte
+        character, but decoding the running list never does. Stops early if the
+        model starts hallucinating a new '###' section.
+        """
+        prompt = self._build_prompt(instruction, input_text)
+        idx = torch.tensor(self.tokenizer.encode(prompt)).unsqueeze(0).to(self.device)
+
+        generated_ids: list[int] = []
+        prev_text = ""
+        stops = ("### Instruction:", "### Input:", "### Response:")
+
+        for token_id in generate_text_stream(
+            self.model,
+            idx,
+            max_new_tokens=max_new_tokens,
+            context_length=self.model.config.context_length,
+            temperature=temperature,
+            top_k=top_k,
+            eos_id=PAD_TOKEN_ID,
+        ):
+            generated_ids.append(token_id)
+            text = self.tokenizer.decode(generated_ids)
+
+            # If a stop marker appears, emit up to it and finish.
+            cut = len(text)
+            for stop in stops:
+                pos = text.find(stop)
+                if pos != -1:
+                    cut = min(cut, pos)
+            if cut < len(text):
+                tail = text[len(prev_text):cut]
+                if tail:
+                    yield tail
+                break
+
+            delta = text[len(prev_text):]
+            prev_text = text
+            if delta:
+                yield delta

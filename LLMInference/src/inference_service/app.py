@@ -16,13 +16,14 @@ import contextlib
 import pathlib
 
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 
 from .engine import InferenceEngine
 from .schemas import GenerateRequest, GenerateResponse
 
 # app.py is at LLMInference/src/inference_service/app.py -> parents[2] = LLMInference/
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]
-CHECKPOINT_PATH = PROJECT_ROOT / "data" / "checkpoints" / "gpt2_124m_chat.pt"
+CHECKPOINT_PATH = PROJECT_ROOT / "data" / "checkpoints" / "gpt2_chat.pt"
 
 # Process-lifetime holder for the loaded engine (populated at startup).
 state: dict[str, InferenceEngine] = {}
@@ -56,3 +57,23 @@ def generate(req: GenerateRequest) -> GenerateResponse:
         top_k=req.top_k,
     )
     return GenerateResponse(response=text)
+
+
+@app.post("/generate/stream")
+def generate_stream(req: GenerateRequest) -> StreamingResponse:
+    """Streams the response token-by-token as plain-text chunks. The client
+    appends each chunk as it arrives, so text shows up live instead of after
+    the whole generation finishes."""
+    engine = state["engine"]
+
+    def token_stream():
+        for delta in engine.generate_stream(
+            instruction=req.instruction,
+            input_text=req.input,
+            max_new_tokens=req.max_new_tokens,
+            temperature=req.temperature,
+            top_k=req.top_k,
+        ):
+            yield delta
+
+    return StreamingResponse(token_stream(), media_type="text/plain; charset=utf-8")

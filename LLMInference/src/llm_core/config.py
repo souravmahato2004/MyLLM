@@ -36,6 +36,16 @@ GPT_CONFIG_124M = GPTConfig(
     qkv_bias=False,
 )
 
+GPT_CONFIG_355M = GPTConfig(
+    vocab_size=50257,
+    context_length=1024,
+    emb_dim=1024,
+    n_heads=16,
+    n_layers=24,
+    drop_rate=0.1,
+    qkv_bias=False,
+)
+
 GPT_CONFIG_TINY = GPTConfig(
     vocab_size=50257,
     context_length=64,
